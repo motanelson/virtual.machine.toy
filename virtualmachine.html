@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>256-Register Virtual Machine</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap');
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    .code-font {
+      font-family: 'Fira Code', monospace;
+    }
+  </style>
+</head>
+<body class="bg-white text-slate-800 min-h-screen flex flex-col">
+
+  <!-- Header -->
+  <header class="border-b border-slate-200 bg-white sticky top-0 z-20 shadow-xs">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-sm">
+          VM
+        </div>
+        <div>
+          <h1 class="text-lg font-bold text-slate-900 leading-tight">Virtual Machine Simulator</h1>
+          <p class="text-xs text-slate-500">256 Registers (R0: Accumulator) • Comma-Delimited ISA</p>
+        </div>
+      </div>
+
+      <!-- File Actions & Controls -->
+      <div class="flex items-center gap-2">
+        <input type="file" id="fileInput" accept=".txt,text/plain" class="hidden" />
+        <button id="btnOpenFile" class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-md border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-sm font-medium transition cursor-pointer shadow-xs">
+          <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+          </svg>
+          Open .txt Script
+        </button>
+
+        <select id="sampleSelect" class="border border-slate-300 rounded-md text-xs py-2 px-2.5 bg-white text-slate-700 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer">
+          <option value="" disabled selected>Load Sample Script...</option>
+          <option value="basic">Full Feature Showcase</option>
+          <option value="math">Swap & Accumulator Demo</option>
+          <option value="fibonacci">Accumulator Loop Routine</option>
+        </select>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 w-full">
+    
+    <!-- Left Column: Code Editor & Execution Controls (5 cols) -->
+    <div class="lg:col-span-5 flex flex-col gap-4">
+      <div class="border border-slate-200 rounded-xl bg-white shadow-xs flex flex-col h-[520px]">
+        <!-- Editor Header -->
+        <div class="px-4 py-2.5 border-b border-slate-200 flex items-center justify-between bg-slate-50/70 rounded-t-xl">
+          <span class="text-xs font-semibold uppercase tracking-wider text-slate-600 flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-slate-400"></span> Script Editor
+          </span>
+          <span id="lineCounter" class="text-xs text-slate-500 code-font">0 lines</span>
+        </div>
+
+        <!-- Textarea -->
+        <textarea id="scriptEditor" spellcheck="false" placeholder="Enter instructions (e.g., move, 1, 42)..." class="flex-1 w-full p-4 code-font text-sm leading-relaxed text-slate-800 placeholder-slate-400 border-none resize-none focus:outline-none focus:ring-0"></textarea>
+
+        <!-- Execution Bar -->
+        <div class="p-3 border-t border-slate-200 bg-slate-50/50 rounded-b-xl flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <button id="btnRun" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-xs font-medium transition cursor-pointer shadow-xs">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+              </svg>
+              Run All
+            </button>
+            <button id="btnStep" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-md text-xs font-medium transition cursor-pointer">
+              <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+              </svg>
+              Step
+            </button>
+            <button id="btnStop" class="px-2.5 py-1.5 text-xs text-slate-600 hover:text-red-600 transition font-medium cursor-pointer">
+              Stop
+            </button>
+          </div>
+          <button id="btnClearScript" class="text-xs text-slate-500 hover:text-slate-800 transition">
+            Clear
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick ISA Reference -->
+      <div class="border border-slate-200 rounded-lg p-3 bg-white text-xs text-slate-600 space-y-1">
+        <p class="font-semibold text-slate-800">Command Format Reference:</p>
+        <p><code class="code-font bg-slate-100 px-1 py-0.5 rounded text-indigo-700">move, [reg], [val]</code> - Set register (0-255) to value</p>
+        <p><code class="code-font bg-slate-100 px-1 py-0.5 rounded text-indigo-700">store, [reg]</code> - Load register value into accumulator (Reg 0)</p>
+        <p><code class="code-font bg-slate-100 px-1 py-0.5 rounded text-indigo-700">load, [dest], [src]</code> - Copy [src] register to [dest] register</p>
+        <p><code class="code-font bg-slate-100 px-1 py-0.5 rounded text-indigo-700">print</code> - Output value held in accumulator (Reg 0)</p>
+        <p><code class="code-font bg-slate-100 px-1 py-0.5 rounded text-indigo-700">reset</code> - Zero all registers & print "reset"</p>
+        <p><code class="code-font bg-slate-100 px-1 py-0.5 rounded text-indigo-700">help</code> - Display ISA command manual</p>
+      </div>
+    </div>
+
+    <!-- Right Column: VM Console Screen & Register Inspector (7 cols) -->
+    <div class="lg:col-span-7 flex flex-col gap-6">
+
+      <!-- Output Screen -->
+      <div class="border border-slate-200 rounded-xl bg-white shadow-xs flex flex-col h-72">
+        <div class="px-4 py-2.5 border-b border-slate-200 flex items-center justify-between bg-slate-50/70 rounded-t-xl">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span class="text-xs font-semibold uppercase tracking-wider text-slate-600">Screen Output</span>
+          </div>
+          <button id="btnClearScreen" class="text-xs text-slate-500 hover:text-slate-800 cursor-pointer transition">
+            Clear Output
+          </button>
+        </div>
+
+        <div id="vmScreen" class="p-4 flex-1 overflow-y-auto code-font text-xs sm:text-sm text-slate-800 space-y-1 bg-white select-text">
+          <div class="text-slate-400 italic">// VM output initialized. Run a script or step through lines.</div>
+        </div>
+      </div>
+
+      <!-- Register Dashboard -->
+      <div class="border border-slate-200 rounded-xl bg-white shadow-xs p-4 flex flex-col gap-4">
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+          <div class="flex items-center gap-2">
+            <h2 class="text-sm font-semibold text-slate-800">Register Bank (0–255)</h2>
+            <span id="activeRegCount" class="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">0 modified</span>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <label class="text-xs text-slate-500">Filter:</label>
+            <input type="text" id="regSearch" placeholder="Reg # or val..." class="text-xs px-2 py-1 border border-slate-300 rounded w-28 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+            <button id="btnResetVM" class="text-xs px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded transition cursor-pointer">
+              Hard Reset
+            </button>
+          </div>
+        </div>
+
+        <!-- Highlight: Accumulator (Register 0) -->
+        <div class="flex items-center justify-between p-3.5 bg-indigo-50/70 border border-indigo-200 rounded-lg">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-md bg-indigo-600 text-white flex items-center justify-center font-bold text-xs">
+              R0
+            </div>
+            <div>
+              <div class="text-xs font-bold text-indigo-900 tracking-wide uppercase">Accumulator (Reg 0)</div>
+              <div class="text-xs text-indigo-600">Target for store & source for print</div>
+            </div>
+          </div>
+          <div class="text-right">
+            <span id="accValue" class="code-font text-2xl font-bold text-indigo-950">0</span>
+          </div>
+        </div>
+
+        <!-- Registers Grid -->
+        <div id="registersGrid" class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2 max-h-56 overflow-y-auto p-1 border border-slate-100 rounded-lg">
+          <!-- Dynamically generated registers 0 to 255 -->
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <script>
+    // --- VM State ---
+    const TOTAL_REGISTERS = 256;
+    const registers = new Int32Array(TOTAL_REGISTERS);
+    let executionLines = [];
+    let currentLineIndex = 0;
+    let isRunning = false;
+    let runInterval = null;
+
+    // --- DOM Elements ---
+    const fileInput = document.getElementById('fileInput');
+    const btnOpenFile = document.getElementById('btnOpenFile');
+    const sampleSelect = document.getElementById('sampleSelect');
+    const scriptEditor = document.getElementById('scriptEditor');
+    const lineCounter = document.getElementById('lineCounter');
+    const btnRun = document.getElementById('btnRun');
+    const btnStep = document.getElementById('btnStep');
+    const btnStop = document.getElementById('btnStop');
+    const btnClearScript = document.getElementById('btnClearScript');
+    const vmScreen = document.getElementById('vmScreen');
+    const btnClearScreen = document.getElementById('btnClearScreen');
+    const btnResetVM = document.getElementById('btnResetVM');
+    const accValue = document.getElementById('accValue');
+    const registersGrid = document.getElementById('registersGrid');
+    const activeRegCount = document.getElementById('activeRegCount');
+    const regSearch = document.getElementById('regSearch');
+
+    // Sample Scripts
+    const SAMPLE_SCRIPTS = {
+      basic: `# Comprehensive VM ISA Demonstration
+help
+move, 5, 120
+move, 12, 450
+load, 20, 5
+store, 20
+print
+reset
+move, 0, 999
+print`,
+
+      math: `# Load values into registers and move to accumulator
+move, 1, 75
+move, 2, 250
+store, 1
+print
+store, 2
+print`,
+
+      fibonacci: `# Setup registers and verify accumulator
+move, 10, 10
+move, 11, 20
+move, 12, 30
+store, 10
+print
+store, 11
+print
+store, 12
+print`
+    };
+
+    // --- Initialize Registers Grid ---
+    function initRegistersGrid() {
+      registersGrid.innerHTML = '';
+      for (let i = 0; i < TOTAL_REGISTERS; i++) {
+        const item = document.createElement('div');
+        item.id = `reg-cell-${i}`;
+        item.className = 'border border-slate-200 rounded p-1.5 flex flex-col bg-white text-center transition';
+        item.innerHTML = `
+          <span class="text-[10px] text-slate-400 font-mono">R${i}</span>
+          <span id="reg-val-${i}" class="text-xs font-semibold code-font text-slate-800">0</span>
+        `;
+        registersGrid.appendChild(item);
+      }
+    }
+
+    // --- Screen Logging Helpers ---
+    function printToScreen(text, type = 'normal') {
+      const line = document.createElement('div');
+      line.className = 'py-0.5 leading-normal';
+      
+      if (type === 'output') {
+        line.className += ' text-indigo-700 font-bold';
+      } else if (type === 'help') {
+        line.className += ' text-slate-600 bg-slate-50 p-2 rounded border border-slate-200 my-1 whitespace-pre-wrap';
+      } else if (type === 'reset') {
+        line.className += ' text-amber-600 font-bold';
+      } else if (type === 'error') {
+        line.className += ' text-red-600 bg-red-50 px-2 py-0.5 rounded';
+      }
+
+      line.textContent = text;
+      vmScreen.appendChild(line);
+      vmScreen.scrollTop = vmScreen.scrollHeight;
+    }
+
+    // --- UI Update Helpers ---
+    function updateRegisterUI(reg) {
+      if (reg >= 0 && reg < TOTAL_REGISTERS) {
+        const val = registers[reg];
+        const valElem = document.getElementById(`reg-val-${reg}`);
+        const cell = document.getElementById(`reg-cell-${reg}`);
+        
+        if (valElem) valElem.textContent = val;
+        
+        if (reg === 0) {
+          accValue.textContent = val;
+        }
+
+        // Highlight modified registers
+        if (cell) {
+          if (val !== 0) {
+            cell.classList.add('bg-indigo-50', 'border-indigo-300');
+          } else {
+            cell.classList.remove('bg-indigo-50', 'border-indigo-300');
+          }
+        }
+      }
+
+      // Update count of modified registers
+      let modified = 0;
+      for (let i = 0; i < TOTAL_REGISTERS; i++) {
+        if (registers[i] !== 0) modified++;
+      }
+      activeRegCount.textContent = `${modified} modified`;
+    }
+
+    function updateAllRegistersUI() {
+      for (let i = 0; i < TOTAL_REGISTERS; i++) {
+        updateRegisterUI(i);
+      }
+    }
+
+    // --- Virtual Machine Core Execution ---
+    function executeLine(rawLine) {
+      const cleanLine = rawLine.trim();
+      
+      // Ignore empty lines and comments
+      if (!cleanLine || cleanLine.startsWith('#') || cleanLine.startsWith('//')) {
+        return;
+      }
+
+      // Split comma separated parameters
+      const parts = cleanLine.split(',').map(p => p.trim());
+      const keyword = parts[0].toLowerCase();
+
+      switch (keyword) {
+        case 'move': {
+          if (parts.length < 3) {
+            printToScreen(`Error: "move" requires register and integer value (format: move, reg, val)`, 'error');
+            return;
+          }
+          const reg = parseInt(parts[1], 10);
+          const val = parseInt(parts[2], 10);
+
+          if (isNaN(reg) || reg < 0 || reg >= TOTAL_REGISTERS || isNaN(val)) {
+            printToScreen(`Error: Invalid arguments for move. Register must be 0-255, value must be integer.`, 'error');
+            return;
+          }
+
+          registers[reg] = val;
+          updateRegisterUI(reg);
+          printToScreen(`register ${reg} = ${val}`);
+          break;
+        }
+
+        case 'store': {
+          if (parts.length < 2) {
+            printToScreen(`Error: "store" requires source register (format: store, reg)`, 'error');
+            return;
+          }
+          const reg = parseInt(parts[1], 10);
+
+          if (isNaN(reg) || reg < 0 || reg >= TOTAL_REGISTERS) {
+            printToScreen(`Error: Invalid register ${parts[1]} for store.`, 'error');
+            return;
+          }
+
+          registers[0] = registers[reg];
+          updateRegisterUI(0);
+          printToScreen(`register 0 = ${registers[0]}`);
+          break;
+        }
+
+        case 'load': {
+          if (parts.length < 3) {
+            printToScreen(`Error: "load" requires destination and source registers (format: load, dest, src)`, 'error');
+            return;
+          }
+          const dest = parseInt(parts[1], 10);
+          const src = parseInt(parts[2], 10);
+
+          if (isNaN(dest) || isNaN(src) || dest < 0 || dest >= TOTAL_REGISTERS || src < 0 || src >= TOTAL_REGISTERS) {
+            printToScreen(`Error: Invalid registers for load. Must be between 0 and 255.`, 'error');
+            return;
+          }
+
+          registers[dest] = registers[src];
+          updateRegisterUI(dest);
+          printToScreen(`register ${dest} = ${registers[dest]}`);
+          break;
+        }
+
+        case 'print': {
+          // Output the value held in accumulator (reg 0)
+          printToScreen(`${registers[0]}`, 'output');
+          break;
+        }
+
+        case 'reset': {
+          // Sets all registers to 0 and displays the word "reset"
+          registers.fill(0);
+          updateAllRegistersUI();
+          printToScreen('reset', 'reset');
+          break;
+        }
+
+        case 'help': {
+          const helpManual = 
+`--- Virtual Machine ISA Help ---
+• move, reg, val    : Assigns integer [val] to [reg] (0-255).
+• store, reg        : Loads value from [reg] into accumulator (Reg 0).
+• load, dest, src   : Copies value from [src] register to [dest] register.
+• print             : Outputs value currently in accumulator (Reg 0).
+• reset             : Sets all registers to 0 and displays "reset".
+• help              : Displays this documentation.`;
+          printToScreen(helpManual, 'help');
+          break;
+        }
+
+        default:
+          printToScreen(`Unknown keyword: "${keyword}"`, 'error');
+          break;
+      }
+    }
+
+    // --- Execution Control flow ---
+    function prepareExecution() {
+      const content = scriptEditor.value;
+      executionLines = content.split('\n');
+    }
+
+    function step() {
+      prepareExecution();
+      while (currentLineIndex < executionLines.length) {
+        const line = executionLines[currentLineIndex];
+        currentLineIndex++;
+        if (line.trim() && !line.trim().startsWith('#') && !line.trim().startsWith('//')) {
+          executeLine(line);
+          return;
+        }
+      }
+      stopRun();
+    }
+
+    function runAll() {
+      stopRun();
+      prepareExecution();
+      currentLineIndex = 0;
+      isRunning = true;
+      btnRun.classList.add('opacity-75');
+
+      runInterval = setInterval(() => {
+        if (currentLineIndex >= executionLines.length) {
+          stopRun();
+          return;
+        }
+        step();
+      }, 35); // Run at a readable speed
+    }
+
+    function stopRun() {
+      isRunning = false;
+      if (runInterval) {
+        clearInterval(runInterval);
+        runInterval = null;
+      }
+      btnRun.classList.remove('opacity-75');
+    }
+
+    // --- File Handling ---
+    btnOpenFile.addEventListener('click', () => {
+      fileInput.value = '';
+      fileInput.click();
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        scriptEditor.value = event.target.result;
+        updateLineCount();
+        currentLineIndex = 0;
+        printToScreen(`Loaded script file: ${file.name}`);
+      };
+      reader.readAsText(file);
+    });
+
+    // --- Editor Events ---
+    function updateLineCount() {
+      const count = scriptEditor.value.split('\n').length;
+      lineCounter.textContent = `${count} line${count !== 1 ? 's' : ''}`;
+    }
+
+    scriptEditor.addEventListener('input', () => {
+      updateLineCount();
+      currentLineIndex = 0;
+    });
+
+    sampleSelect.addEventListener('change', (e) => {
+      const key = e.target.value;
+      if (SAMPLE_SCRIPTS[key]) {
+        scriptEditor.value = SAMPLE_SCRIPTS[key];
+        updateLineCount();
+        currentLineIndex = 0;
+      }
+    });
+
+    // --- Register Filter / Search ---
+    regSearch.addEventListener('input', (e) => {
+      const query = e.target.value.trim().toLowerCase();
+      for (let i = 0; i < TOTAL_REGISTERS; i++) {
+        const cell = document.getElementById(`reg-cell-${i}`);
+        if (!cell) continue;
+        if (!query) {
+          cell.style.display = '';
+        } else {
+          const matchReg = `r${i}`.includes(query) || `${i}` === query;
+          const matchVal = `${registers[i]}` === query;
+          cell.style.display = (matchReg || matchVal) ? '' : 'none';
+        }
+      }
+    });
+
+    // --- Button Actions ---
+    btnRun.addEventListener('click', () => {
+      if (isRunning) stopRun();
+      else runAll();
+    });
+
+    btnStep.addEventListener('click', () => {
+      stopRun();
+      step();
+    });
+
+    btnStop.addEventListener('click', stopRun);
+
+    btnClearScript.addEventListener('click', () => {
+      stopRun();
+      scriptEditor.value = '';
+      updateLineCount();
+      currentLineIndex = 0;
+    });
+
+    btnClearScreen.addEventListener('click', () => {
+      vmScreen.innerHTML = '';
+    });
+
+    btnResetVM.addEventListener('click', () => {
+      stopRun();
+      registers.fill(0);
+      updateAllRegistersUI();
+      currentLineIndex = 0;
+      printToScreen('reset', 'reset');
+    });
+
+    // --- Initialization ---
+    initRegistersGrid();
+    scriptEditor.value = SAMPLE_SCRIPTS.basic;
+    updateLineCount();
+    updateAllRegistersUI();
+  </script>
+</body>
+</html>
