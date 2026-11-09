@@ -1,0 +1,6 @@
+move,1,200
+store,1
+print
+move,2,300
+load,0,2
+print
