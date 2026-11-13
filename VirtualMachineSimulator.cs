@@ -195,9 +195,9 @@ namespace VirtualMachineSimulator
                 case "print":
                 {
                     // Print the value held in the accumulator (register 0).
-                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    //Console.ForegroundColor = ConsoleColor.Cyan;
                     Console.WriteLine(Registers[0]);
-                    Console.ResetColor();
+                    //Console.ResetColor();
                     break;
                 }
 
@@ -205,9 +205,9 @@ namespace VirtualMachineSimulator
                 {
                     // Set all registers to zero and display "reset".
                     Array.Clear(Registers, 0, Registers.Length);
-                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    //Console.ForegroundColor = ConsoleColor.Yellow;
                     Console.WriteLine("reset");
-                    Console.ResetColor();
+                    //Console.ResetColor();
                     break;
                 }
 
@@ -238,9 +238,9 @@ namespace VirtualMachineSimulator
 
         private static void PrintError(string message)
         {
-            Console.ForegroundColor = ConsoleColor.Red;
+            //Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine("Error: " + message);
-            Console.ResetColor();
+            //Console.ResetColor();
         }
 
         private static void ShowRegisters()
