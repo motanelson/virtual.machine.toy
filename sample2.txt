@@ -1,0 +1,6 @@
+move, 1, 75
+move, 2, 250
+store, 1
+print
+store, 2
+print

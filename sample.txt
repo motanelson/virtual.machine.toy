@@ -1,0 +1,9 @@
+help
+move, 5, 120
+move, 12, 450
+load, 20, 5
+store, 20
+print
+reset
+move, 0, 999
+print

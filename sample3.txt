@@ -1,0 +1,9 @@
+move, 10, 10
+move, 11, 20
+move, 12, 30
+store, 10
+print
+store, 11
+print
+store, 12
+print
